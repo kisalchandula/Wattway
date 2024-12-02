@@ -1,12 +1,13 @@
 import React from 'react';
+import logo from '../Assets/logo192.png';
 
 const Navbar = () => {
   return (
     <nav style={styles.navbar}>
       <div style={styles.leftSection}>
         <img
-          src="./logo192.png" // Replace with your actual logo path
-          alt="Wattway Logo"
+          src={logo}
+          alt=""
           style={styles.logo}
         />
         <h1 style={styles.title}>Wattway</h1>
