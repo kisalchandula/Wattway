@@ -23,11 +23,11 @@ const MapComponent = () => {
   const [userLocation, setUserLocation] = useState(null);
 
   useEffect(() => {
-    // Get user's current location
+    
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setUserLocation([longitude, latitude]); // Store user's location
+        setUserLocation([longitude, latitude]); 
       },
       (error) => {
         console.error('Error fetching user location:', error);
@@ -38,10 +38,8 @@ const MapComponent = () => {
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Create a vector source for stations
     const stationSource = new VectorSource();
 
-    // Add station features
     dummyStations.forEach((station) => {
       const feature = new Feature({
         geometry: new Point(fromLonLat(station.coordinates)),
@@ -50,16 +48,16 @@ const MapComponent = () => {
       let fillColor;
       switch (station.chargingType) {
         case 'Fast':
-          fillColor = '#4caf50'; // Green
+          fillColor = '#4caf50'; 
           break;
         case 'Slow':
-          fillColor = '#ff9800'; // Orange
+          fillColor = '#ff9800'; 
           break;
         case 'Superfast':
-          fillColor = '#f44336'; // Red
+          fillColor = '#f44336'; 
           break;
         default:
-          fillColor = '#9e9e9e'; // Gray
+          fillColor = '#9e9e9e'; 
       }
 
       feature.setStyle(
@@ -75,7 +73,6 @@ const MapComponent = () => {
       stationSource.addFeature(feature);
     });
 
-    // Create a vector source for user location
     const userSource = new VectorSource();
 
     if (userLocation) {
@@ -87,7 +84,7 @@ const MapComponent = () => {
         new Style({
           image: new CircleStyle({
             radius: 10,
-            fill: new Fill({ color: '#2196f3' }), // Blue for the user
+            fill: new Fill({ color: '#2196f3' }), 
             stroke: new Stroke({ color: '#fff', width: 2 }),
           }),
         })
@@ -113,7 +110,7 @@ const MapComponent = () => {
         userLayer,
       ],
       view: new View({
-        center: fromLonLat([8.448259, 49.018597]), // Centered near Karlsruhe
+        center: fromLonLat([8.448259, 49.018597]), 
         zoom: 14,
       }),
     });
@@ -126,8 +123,8 @@ const MapComponent = () => {
       ref={mapRef}
       style={{
         width: '100%',
-        height: 'calc(100vh - 60px)', // Adjust height to exclude navbar
-        marginTop: '60px',            // Push map below the navbar
+        height: 'calc(100vh - 60px)', 
+        marginTop: '60px',           
       }}
     ></div>
   );

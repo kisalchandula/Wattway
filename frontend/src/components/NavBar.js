@@ -28,7 +28,7 @@ const styles = {
     color: '#fff',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between', // Space out the sections
+    justifyContent: 'space-between', 
     padding: '0 20px',
     boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
     zIndex: 1000,
@@ -50,7 +50,7 @@ const styles = {
     margin: 0,
     fontSize: '16px',
     textAlign: 'center',
-    flexGrow: 1, // Allows it to take up space in the middle
+    flexGrow: 1, 
   },
 };
 
