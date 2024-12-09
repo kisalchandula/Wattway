@@ -1,130 +1,200 @@
-import React, { useEffect, useRef, useState } from 'react';
-import 'ol/ol.css';
-import { Map, View } from 'ol';
-import TileLayer from 'ol/layer/Tile';
-import XYZ from 'ol/source/XYZ';
-import VectorLayer from 'ol/layer/Vector';
-import VectorSource from 'ol/source/Vector';
-import { Point } from 'ol/geom';
-import { Feature } from 'ol';
-import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style';
-import { fromLonLat } from 'ol/proj';
-
-const dummyStations = [
-  { id: 1, name: 'Station A', coordinates: [8.448259, 49.018597], chargingType: 'Fast', capacity: 4 },
-  { id: 2, name: 'Station B', coordinates: [8.4505, 49.0198], chargingType: 'Slow', capacity: 6 },
-  { id: 3, name: 'Station C', coordinates: [8.4459, 49.0175], chargingType: 'Superfast', capacity: 2 },
-  { id: 4, name: 'Station D', coordinates: [8.4495, 49.0210], chargingType: 'Fast', capacity: 3 },
-  { id: 5, name: 'Station E', coordinates: [8.4467, 49.0160], chargingType: 'Slow', capacity: 5 },
-];
+import React, { useEffect, useRef } from 'react';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import station1 from './Assets/electricity.png'
 
 const MapComponent = () => {
-  const mapRef = useRef(null);
-  const [userLocation, setUserLocation] = useState(null);
+  const mapRef = useRef(null); // Reference to the map container
+  const mapInstance = useRef(null); // Reference to the Leaflet map instance
+  const chargeStationsLayer = useRef(null); // Layer for charge stations
+  const routeLayer = useRef(null); // Layer for the route
+  const userLocationLayer = useRef(null); // Layer for the user's location
+
+  const ROUTING_API_KEY = '5b3ce3597851110001cf6248f6390103d37547ff9e7224f453b2ebb4'; // Replace with OpenRouteService API key
+  const OPENCHARGE_API_KEY = 'a18b71f0-6ba9-4d0f-8998-810a0073b1de'; // Replace with Open Charge Map API key
 
   useEffect(() => {
-    
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setUserLocation([longitude, latitude]); 
-      },
-      (error) => {
-        console.error('Error fetching user location:', error);
-      }
-    );
-  }, []);
+    if (!mapInstance.current) {
+      // Initialize the map
+      mapInstance.current = L.map(mapRef.current).setView([49.417, 8.686], 14); // Center on Karlsruhe
 
-  useEffect(() => {
-    if (!mapRef.current) return;
+      // Add OpenStreetMap tile layer
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(mapInstance.current);
 
-    const stationSource = new VectorSource();
+      // Initialize layer groups
+      chargeStationsLayer.current = L.layerGroup().addTo(mapInstance.current);
+      routeLayer.current = L.layerGroup().addTo(mapInstance.current);
+      userLocationLayer.current = L.layerGroup().addTo(mapInstance.current);
 
-    dummyStations.forEach((station) => {
-      const feature = new Feature({
-        geometry: new Point(fromLonLat(station.coordinates)),
-      });
-
-      let fillColor;
-      switch (station.chargingType) {
-        case 'Fast':
-          fillColor = '#4caf50'; 
-          break;
-        case 'Slow':
-          fillColor = '#ff9800'; 
-          break;
-        case 'Superfast':
-          fillColor = '#f44336'; 
-          break;
-        default:
-          fillColor = '#9e9e9e'; 
-      }
-
-      feature.setStyle(
-        new Style({
-          image: new CircleStyle({
-            radius: 8,
-            fill: new Fill({ color: fillColor }),
-            stroke: new Stroke({ color: '#fff', width: 2 }),
-          }),
-        })
-      );
-
-      stationSource.addFeature(feature);
-    });
-
-    const userSource = new VectorSource();
-
-    if (userLocation) {
-      const userFeature = new Feature({
-        geometry: new Point(fromLonLat(userLocation)),
-      });
-
-      userFeature.setStyle(
-        new Style({
-          image: new CircleStyle({
-            radius: 10,
-            fill: new Fill({ color: '#2196f3' }), 
-            stroke: new Stroke({ color: '#fff', width: 2 }),
-          }),
-        })
-      );
-
-      userSource.addFeature(userFeature);
+      // Fetch and display user location, charging stations, and route
+      getUserLocationAndChargingStations();
     }
 
-    // Create layers
-    const stationLayer = new VectorLayer({ source: stationSource });
-    const userLayer = new VectorLayer({ source: userSource });
+    return () => {
+      // Cleanup on unmount
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, []);
 
-    // Initialize the map
-    const map = new Map({
-      target: mapRef.current,
-      layers: [
-        new TileLayer({
-          source: new XYZ({
-            url: 'https://{a-d}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          }),
-        }),
-        stationLayer,
-        userLayer,
-      ],
-      view: new View({
-        center: fromLonLat([8.448259, 49.018597]), 
-        zoom: 14,
-      }),
+  const getUserLocationAndChargingStations = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+
+          // Add a marker for the user's current location
+          const userMarker = L.marker([latitude, longitude], {
+            icon: L.icon({
+              iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+            }),
+          }).addTo(userLocationLayer.current);
+
+          userMarker.bindPopup(`<strong>Your Current Location</strong>`).openPopup();
+
+          // Fetch charging stations within a 10 km radius
+          const stations = await fetchChargingStations(latitude, longitude);
+
+          // Find the closest charging station
+          if (stations && stations.length > 0) {
+            const closestStation = findClosestStation(latitude, longitude, stations);
+
+            if (closestStation) {
+              // Show route to the closest charging station
+              fetchRoute([longitude, latitude], [closestStation.Longitude, closestStation.Latitude]);
+            }
+          }
+
+          // Optionally, center the map on the user's location
+          mapInstance.current.setView([latitude, longitude], 14);
+        },
+        (error) => {
+          console.error('Error getting user location:', error);
+        }
+      );
+    } else {
+      console.error('Geolocation is not supported by this browser.');
+    }
+  };
+
+  const fetchChargingStations = async (latitude, longitude) => {
+    const radius = 10; // 10 km radius
+    const url = `https://api.openchargemap.io/v3/poi/?key=${OPENCHARGE_API_KEY}&latitude=${latitude}&longitude=${longitude}&distance=${radius}&distanceunit=KM`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data && Array.isArray(data)) {
+        addMarkersToMap(data);
+        return data;
+      }
+    } catch (error) {
+      console.error('Error fetching charging station data:', error);
+    }
+    return [];
+  };
+
+  const addMarkersToMap = (stations) => {
+    // Clear previous markers
+    chargeStationsLayer.current.clearLayers();
+
+    // Add a marker for each station
+    stations.forEach((station) => {
+      const { AddressInfo } = station;
+
+      if (AddressInfo) {
+        const { Latitude, Longitude, Title } = AddressInfo;
+
+        if (Latitude && Longitude) {
+          const marker = L.marker([Latitude, Longitude], {
+            icon: L.icon({
+              iconUrl: station1,
+              iconSize: [35, 47],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+            }),
+          }).addTo(chargeStationsLayer.current);
+
+          // Add a popup with station details
+          marker.bindPopup(`
+            <strong>${Title}</strong><br/>
+            <em>${AddressInfo.AddressLine1 || ''}</em><br/>
+            <em>${AddressInfo.Town || ''}</em><br/>
+          `);
+        }
+      }
+    });
+  };
+
+  const findClosestStation = (userLat, userLng, stations) => {
+    let closestStation = null;
+    let minDistance = Infinity;
+
+    stations.forEach((station) => {
+      const { AddressInfo } = station;
+
+      if (AddressInfo) {
+        const { Latitude, Longitude } = AddressInfo;
+
+        if (Latitude && Longitude) {
+          const distance = Math.sqrt(
+            Math.pow(Latitude - userLat, 2) + Math.pow(Longitude - userLng, 2)
+          );
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestStation = AddressInfo;
+          }
+        }
+      }
     });
 
-    return () => map.setTarget(null);
-  }, [userLocation]);
+    return closestStation;
+  };
+
+  const fetchRoute = async (start, end) => {
+    try {
+      const response = await fetch(
+        `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${ROUTING_API_KEY}&start=${start.join(',')}&end=${end.join(',')}`
+      );
+
+      const data = await response.json();
+
+      if (data && data.features && data.features[0]) {
+        const coordinates = data.features[0].geometry.coordinates;
+
+        // Convert coordinates to Leaflet-friendly format ([lat, lng])
+        const route = coordinates.map(([lng, lat]) => [lat, lng]);
+
+        // Clear previous route
+        routeLayer.current.clearLayers();
+
+        // Add the route to the map
+        const polyline = L.polyline(route, { color: 'blue', weight: 5 }).addTo(routeLayer.current);
+
+        // Adjust the map view to fit the route
+        mapInstance.current.fitBounds(polyline.getBounds());
+      }
+    } catch (error) {
+      console.error('Error fetching route:', error);
+    }
+  };
 
   return (
     <div
       ref={mapRef}
       style={{
         width: '100%',
-        height: 'calc(100vh - 60px)', 
-        marginTop: '60px',           
+        height: '89vh',
       }}
     ></div>
   );
