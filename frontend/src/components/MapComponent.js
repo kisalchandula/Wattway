@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import station1 from './Assets/electricity.png'
+import car from './Assets/pin.png'
 
 const MapComponent = () => {
   const mapRef = useRef(null); // Reference to the map container
@@ -51,14 +52,14 @@ const MapComponent = () => {
           // Add a marker for the user's current location
           const userMarker = L.marker([latitude, longitude], {
             icon: L.icon({
-              iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-              iconSize: [25, 41],
+              iconUrl: car,
+              iconSize: [50, 50],
               iconAnchor: [12, 41],
               popupAnchor: [1, -34],
             }),
           }).addTo(userLocationLayer.current);
 
-          userMarker.bindPopup(`<strong>Your Current Location</strong>`).openPopup();
+          userMarker.bindPopup(`<strong>Current Vehicle Location</strong>`).openPopup();
 
           // Fetch charging stations within a 10 km radius
           const stations = await fetchChargingStations(latitude, longitude);
