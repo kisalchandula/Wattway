@@ -1,5 +1,5 @@
 import React from 'react';
-import logo from '../Assets/logo192.png';
+import logo from './Assets/logo192.png';
 
 const Navbar = () => {
   return (
@@ -19,7 +19,7 @@ const Navbar = () => {
 
 const styles = {
   navbar: {
-    position: 'fixed',
+    position: 'relative',
     top: 0,
     left: 0,
     width: '100%',
