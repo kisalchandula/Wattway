@@ -1,27 +1,33 @@
 import React, { useState } from "react";
+import '../styles/style.css';
 
-const InputPanel = () => {
+const InputPanel = ({ onFindClick }) => {
   const [chargingType, setChargingType] = useState("");
   const [currentCharge, setCurrentCharge] = useState("");
-  const [range, setRange] = useState(100); // Default range is 100 km
+  const [isPaid, setIsPaid] = useState(false); // State to manage Paid/Free toggle
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert(
-      `Charging Type: ${chargingType}, Current Charge: ${currentCharge}%, Range: ${range} km`
-    );
-    // You can replace this alert with API calls or state updates
+
+    // Invoke the passed-in function when "Find" is clicked
+    if (onFindClick) {
+      onFindClick(chargingType, isPaid, currentCharge);
+    }
+  };
+
+  const togglePaid = () => {
+    setIsPaid(!isPaid); // Toggle the Paid/Free state
   };
 
   return (
-    <div style={styles.panel}>
-      <h3 style={styles.title}>EV Info</h3>
+    <div className="panel">
+      <h3 className="title">EV Info</h3>
       <form onSubmit={handleSubmit}>
         {/* Charging Type */}
-        <label style={styles.label}>
+        <label className="label">
           Charging Type:
           <select
-            style={styles.input}
+            className="input"
             value={chargingType}
             onChange={(e) => setChargingType(e.target.value)}
           >
@@ -32,11 +38,11 @@ const InputPanel = () => {
         </label>
 
         {/* Current Charge */}
-        <label style={styles.label}>
+        <label className="label">
           Current Charge (%):
           <input
             type="number"
-            style={styles.input}
+            className="input"
             value={currentCharge}
             onChange={(e) => setCurrentCharge(e.target.value)}
             placeholder="Enter current charge"
@@ -45,78 +51,27 @@ const InputPanel = () => {
           />
         </label>
 
-        {/* Range Slider */}
-        <label style={styles.label}>
-          Range (km): {range} km
-          <input
-            type="range"
-            style={styles.slider}
-            value={range}
-            onChange={(e) => setRange(e.target.value)}
-            min="0"
-            max="100"
-            step="2"
-          />
+        {/* Paid/Free Toggle */}
+        <label className="toggleLabel">
+          <span>Free</span>
+          <div
+            className={`toggle ${isPaid ? "paid" : "free"}`}
+            onClick={togglePaid}
+          >
+            <div
+              className="toggleCircle"
+              style={{ transform: isPaid ? "translateX(24px)" : "translateX(0)" }}
+            />
+          </div>
+          <span>Paid</span>
         </label>
 
-        <button type="submit" style={styles.button}>
+        <button type="submit" className="button">
           Find
         </button>
       </form>
     </div>
   );
 };
-
-const styles = {
-  panel: {
-    position: "absolute",
-    bottom: "80px",
-    left: "20px",
-    width: "300px",
-    padding: "15px",
-    backgroundColor: "#fff",
-    borderRadius: "8px",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-    zIndex: 1000,
-  },
-  title: {
-    margin: "0 0 15px",
-    fontSize: "18px",
-    fontWeight: "bold",
-    textAlign: "center", // Center text
-  },
-  label: {
-    display: "block",
-    margin: "10px 0",
-    fontSize: "14px",
-    fontWeight: "bold",
-  },
-  input: {
-    display: "block",
-    width: "100%",
-    margin: "5px 0",
-    padding: "4px",
-    fontSize: "14px",
-    border: "1px solid #ccc",
-    borderRadius: "4px",
-  },
-  slider: {
-    width: "100%",
-    marginTop: "10px",
-  },
-  button: {
-    marginTop: "15px",
-    padding: "10px",
-    width: "100%",
-    backgroundColor: "#007BFF",
-    color: "#fff",
-    fontSize: "16px",
-    fontWeight: "bold",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-};
-
 
 export default InputPanel;

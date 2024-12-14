@@ -1,18 +1,19 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import station1 from './Assets/electricity.png'
-import car from './Assets/pin.png'
+import chargingPoint from './Assets/electricity.png';
+import car from './Assets/pin.png';
+import '../styles/style.css';
 
-const MapComponent = () => {
-  const mapRef = useRef(null); // Reference to the map container
-  const mapInstance = useRef(null); // Reference to the Leaflet map instance
-  const chargeStationsLayer = useRef(null); // Layer for charge stations
-  const routeLayer = useRef(null); // Layer for the route
-  const userLocationLayer = useRef(null); // Layer for the user's location
+const MapComponent = forwardRef((props, ref) => {
+  const mapRef = useRef(null); 
+  const mapInstance = useRef(null); 
+  const chargeStationsLayer = useRef(null); 
+  const routeLayer = useRef(null); 
+  const userLocationLayer = useRef(null); 
 
-  const ROUTING_API_KEY = '5b3ce3597851110001cf6248f6390103d37547ff9e7224f453b2ebb4'; // Replace with OpenRouteService API key
-  const OPENCHARGE_API_KEY = 'a18b71f0-6ba9-4d0f-8998-810a0073b1de'; // Replace with Open Charge Map API key
+  const ROUTING_API_KEY = '5b3ce3597851110001cf6248f6390103d37547ff9e7224f453b2ebb4'; 
+  const OPENCHARGE_API_KEY = 'a18b71f0-6ba9-4d0f-8998-810a0073b1de'; 
 
   useEffect(() => {
     if (!mapInstance.current) {
@@ -30,23 +31,11 @@ const MapComponent = () => {
       routeLayer.current = L.layerGroup().addTo(mapInstance.current);
       userLocationLayer.current = L.layerGroup().addTo(mapInstance.current);
 
-      // Fetch and display user location, charging stations, and route
-      getUserLocationAndChargingStations();
-    }
 
-    return () => {
-      // Cleanup on unmount
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
-    };
-  }, []);
 
-  const getUserLocationAndChargingStations = () => {
-    if (navigator.geolocation) {
+
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
+        async (position,) => {
           const { latitude, longitude } = position.coords;
 
           // Add a marker for the user's current location
@@ -61,30 +50,88 @@ const MapComponent = () => {
 
           userMarker.bindPopup(`<strong>Current Vehicle Location</strong>`).openPopup();
 
-          // Fetch charging stations within a 10 km radius
-          const stations = await fetchChargingStations(latitude, longitude);
+        
+        
+        // Optionally, center the map on the user's location
+        mapInstance.current.setView([latitude, longitude], 14);
 
+          // Fetch charging stations within a 10 km radius
+          
+        fetchChargingStations(latitude, longitude);
+      });
+      
+
+
+    }
+
+    return () => {
+      // Cleanup on unmount
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, []);
+
+  const getUserLocationAndChargingStations = (chargingType, isPaid, currentCharge) => {
+    const rangePerPercent = 3; // Assume 1% charge equals 3 km range
+    const vehicleRange = currentCharge * rangePerPercent;
+  
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+  
+          // Fetch charging stations within 10 km radius
+          const stations = await fetchChargingStations(latitude, longitude);
+  
           // Find the closest charging station
           if (stations && stations.length > 0) {
-            const closestStation = findClosestStation(latitude, longitude, stations);
-
+            const closestStation = findClosestStation(latitude, longitude, stations, chargingType, isPaid);
+  
             if (closestStation) {
-              // Show route to the closest charging station
-              fetchRoute([longitude, latitude], [closestStation.Longitude, closestStation.Latitude]);
+              const distanceToStation = calculateDistance(
+                latitude,
+                longitude,
+                closestStation.Latitude,
+                closestStation.Longitude
+              );
+  
+              if (distanceToStation <= vehicleRange) {
+                // Proceed to fetch route
+                fetchRoute([longitude, latitude], [closestStation.Longitude, closestStation.Latitude]);
+              } else {
+                alert("No Station available within range.");
+              }
+            } else {
+              alert("No Station found for the selected criteria.");
             }
           }
-
-          // Optionally, center the map on the user's location
-          mapInstance.current.setView([latitude, longitude], 14);
         },
         (error) => {
-          console.error('Error getting user location:', error);
+          console.error("Error getting user location:", error);
         }
       );
     } else {
-      console.error('Geolocation is not supported by this browser.');
+      console.error("Geolocation is not supported by this browser.");
     }
   };
+  
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const toRad = (value) => (value * Math.PI) / 180;
+  
+    const R = 6371; // Earth's radius in km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  };
+  
 
   const fetchChargingStations = async (latitude, longitude) => {
     const radius = 10; // 10 km radius
@@ -107,60 +154,93 @@ const MapComponent = () => {
   const addMarkersToMap = (stations) => {
     // Clear previous markers
     chargeStationsLayer.current.clearLayers();
-
+  
     // Add a marker for each station
     stations.forEach((station) => {
-      const { AddressInfo } = station;
-
+      const { AddressInfo, Connections, UsageCost } = station; // UsageCost holds the cost information
+  
       if (AddressInfo) {
         const { Latitude, Longitude, Title } = AddressInfo;
-
+  
         if (Latitude && Longitude) {
+          const supportsFastCharging = Connections?.some(
+            (connection) => connection.Level?.IsFastChargeCapable
+          );
+  
+          // Determine if the station is Free or Paid
+          const isPaid = UsageCost && UsageCost.trim() !== ""; // Check if UsageCost is provided and not empty
+          const costInfo = isPaid ? `Paid` : `Free`;
+  
+          // Marker for each station
           const marker = L.marker([Latitude, Longitude], {
             icon: L.icon({
-              iconUrl: station1,
+              iconUrl: chargingPoint,
               iconSize: [35, 47],
               iconAnchor: [12, 41],
               popupAnchor: [1, -34],
             }),
           }).addTo(chargeStationsLayer.current);
-
-          // Add a popup with station details
+  
+          // Add a popup with station details, including Cost
           marker.bindPopup(`
             <strong>${Title}</strong><br/>
             <em>${AddressInfo.AddressLine1 || ''}</em><br/>
             <em>${AddressInfo.Town || ''}</em><br/>
+            <strong>Fast Charging:</strong> ${supportsFastCharging ? 'Yes' : 'No'}<br/>
+            <strong>Cost:</strong> ${costInfo}
           `);
         }
       }
     });
   };
 
-  const findClosestStation = (userLat, userLng, stations) => {
+  const findClosestStation = (userLat, userLng, stations, chargingType, isPaid) => {
     let closestStation = null;
     let minDistance = Infinity;
-
+  
     stations.forEach((station) => {
-      const { AddressInfo } = station;
-
-      if (AddressInfo) {
+      const { AddressInfo, Connections, UsageCost } = station;
+  
+      if (AddressInfo && Connections) {
         const { Latitude, Longitude } = AddressInfo;
-
+  
         if (Latitude && Longitude) {
-          const distance = Math.sqrt(
-            Math.pow(Latitude - userLat, 2) + Math.pow(Longitude - userLng, 2)
+          // Determine if the station matches the selected charging type
+          const supportsFastCharging = Connections.some(
+            (connection) => connection.Level?.IsFastChargeCapable
           );
-
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestStation = AddressInfo;
+  
+          const isMatchingType =
+            (chargingType === "fast" && supportsFastCharging) ||
+            (chargingType === "normal" && !supportsFastCharging);
+  
+          // Determine if the station is Paid or Free
+          const isFreeStation =
+            !UsageCost || UsageCost.trim().toLowerCase() === "Free of charge";
+  
+          const matchesPaidFilter = isPaid ? !isFreeStation : isFreeStation;
+  
+          if (isMatchingType && matchesPaidFilter) {
+            // Calculate distance
+            const distance = Math.sqrt(
+              Math.pow(Latitude - userLat, 2) + Math.pow(Longitude - userLng, 2)
+            );
+  
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestStation = AddressInfo;
+            }
           }
         }
       }
     });
-
+  
     return closestStation;
   };
+  
+  
+  
+  
 
   const fetchRoute = async (start, end) => {
     try {
@@ -190,15 +270,17 @@ const MapComponent = () => {
     }
   };
 
+  // Expose the function to the parent via ref
+  useImperativeHandle(ref, () => ({
+    getUserLocationAndChargingStations,
+  }));
+
   return (
     <div
       ref={mapRef}
-      style={{
-        width: '100%',
-        height: '89vh',
-      }}
+      className="map-container" // Use the className defined in styles.css
     ></div>
   );
-};
+});
 
 export default MapComponent;

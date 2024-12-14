@@ -1,19 +1,22 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import Navbar from './components/NavBar';
 import MapComponent from './components/MapComponent';
 import InputPanel from './components/InputPannel';
 
 const App = () => {
-  const handleUserInput = (data) => {
-    console.log('User Input:', data);
-    // Process or store the data as needed
+  const mapRef = useRef(null); // Reference to MapComponent
+
+  const handleFindClick = (chargingType, isPaid, currentCharge) => {
+    if (mapRef.current) {
+      mapRef.current.getUserLocationAndChargingStations(chargingType, isPaid, currentCharge);
+    }
   };
 
   return (
     <div>
       <Navbar />
-      <MapComponent />
-      <InputPanel onSubmit={handleUserInput} />
+      <MapComponent ref={mapRef} />
+      <InputPanel onFindClick={handleFindClick} />
     </div>
   );
 };
