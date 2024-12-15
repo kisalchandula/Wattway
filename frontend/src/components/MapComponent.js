@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useRef, forwardRef, useImperativeHandle, useState, useCallback } from 'react';
+import UserAlert  from './CustomAleart';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import chargingPoint from './Assets/electricity.png';
@@ -12,8 +13,29 @@ const MapComponent = forwardRef((props, ref) => {
   const routeLayer = useRef(null); 
   const userLocationLayer = useRef(null); 
 
+  const [alertMessage, setAlertMessage] = useState(""); // Alert state
+  const [showAlert, setShowAlert] = useState(false); // Alert visibility
+
   const ROUTING_API_KEY = '5b3ce3597851110001cf6248f6390103d37547ff9e7224f453b2ebb4'; 
   const OPENCHARGE_API_KEY = 'a18b71f0-6ba9-4d0f-8998-810a0073b1de'; 
+
+  const fetchChargingStations = useCallback(async (latitude, longitude) => {
+    const radius = 10; // 10 km radius
+    const url = `https://api.openchargemap.io/v3/poi/?key=${OPENCHARGE_API_KEY}&latitude=${latitude}&longitude=${longitude}&distance=${radius}&distanceunit=KM`;
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+  
+      if (data && Array.isArray(data)) {
+        addMarkersToMap(data);
+        return data;
+      }
+    } catch (error) {
+      console.error('Error fetching charging station data:', error);
+    }
+    return [];
+  }, [OPENCHARGE_API_KEY]);
 
   useEffect(() => {
     if (!mapInstance.current) {
@@ -55,9 +77,8 @@ const MapComponent = forwardRef((props, ref) => {
         // Optionally, center the map on the user's location
         mapInstance.current.setView([latitude, longitude], 14);
 
-          // Fetch charging stations within a 10 km radius
-          
-        fetchChargingStations(latitude, longitude);
+        // Fetch charging stations within a 10 km radius  
+        await fetchChargingStations(latitude, longitude);
       });
       
 
@@ -71,7 +92,7 @@ const MapComponent = forwardRef((props, ref) => {
         mapInstance.current = null;
       }
     };
-  }, []);
+  }, [fetchChargingStations]);
 
   const getUserLocationAndChargingStations = (chargingType, isPaid, currentCharge) => {
     const rangePerPercent = 3; // Assume 1% charge equals 3 km range
@@ -101,10 +122,10 @@ const MapComponent = forwardRef((props, ref) => {
                 // Proceed to fetch route
                 fetchRoute([longitude, latitude], [closestStation.Longitude, closestStation.Latitude]);
               } else {
-                alert("No Station available within range.");
+                showCustomAlert("No Station available within range.");
               }
             } else {
-              alert("No Station found for the selected criteria.");
+              showCustomAlert("No Closest Station available with search criteria.");
             }
           }
         },
@@ -115,6 +136,11 @@ const MapComponent = forwardRef((props, ref) => {
     } else {
       console.error("Geolocation is not supported by this browser.");
     }
+  };
+
+  const showCustomAlert = (message) => {
+    setAlertMessage(message);
+    setShowAlert(true);
   };
   
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -133,23 +159,7 @@ const MapComponent = forwardRef((props, ref) => {
   };
   
 
-  const fetchChargingStations = async (latitude, longitude) => {
-    const radius = 10; // 10 km radius
-    const url = `https://api.openchargemap.io/v3/poi/?key=${OPENCHARGE_API_KEY}&latitude=${latitude}&longitude=${longitude}&distance=${radius}&distanceunit=KM`;
-
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data && Array.isArray(data)) {
-        addMarkersToMap(data);
-        return data;
-      }
-    } catch (error) {
-      console.error('Error fetching charging station data:', error);
-    }
-    return [];
-  };
+ 
 
   const addMarkersToMap = (stations) => {
     // Clear previous markers
@@ -157,7 +167,7 @@ const MapComponent = forwardRef((props, ref) => {
   
     // Add a marker for each station
     stations.forEach((station) => {
-      const { AddressInfo, Connections, UsageCost } = station; // UsageCost holds the cost information
+      const { AddressInfo, Connections, UsageCost, MediaItems } = station; // UsageCost holds the cost information
   
       if (AddressInfo) {
         const { Latitude, Longitude, Title } = AddressInfo;
@@ -170,6 +180,9 @@ const MapComponent = forwardRef((props, ref) => {
           // Determine if the station is Free or Paid
           const isPaid = UsageCost && UsageCost.trim() !== ""; // Check if UsageCost is provided and not empty
           const costInfo = isPaid ? `Paid` : `Free`;
+
+          // Retrieve the thumbnail URL if available
+          const thumbnailUrl = MediaItems && MediaItems[0].ItemThumbnailURL;
   
           // Marker for each station
           const marker = L.marker([Latitude, Longitude], {
@@ -181,13 +194,13 @@ const MapComponent = forwardRef((props, ref) => {
             }),
           }).addTo(chargeStationsLayer.current);
   
-          // Add a popup with station details, including Cost
           marker.bindPopup(`
-            <strong>${Title}</strong><br/>
-            <em>${AddressInfo.AddressLine1 || ''}</em><br/>
-            <em>${AddressInfo.Town || ''}</em><br/>
-            <strong>Fast Charging:</strong> ${supportsFastCharging ? 'Yes' : 'No'}<br/>
-            <strong>Cost:</strong> ${costInfo}
+              <strong>${Title}</strong><br/>
+              <em>${AddressInfo.AddressLine1 || ''}</em><br/>
+              <em>${AddressInfo.Town || ''}</em><br/>
+              <strong>Fast Charging:</strong> ${supportsFastCharging ? 'Yes' : 'No'}<br/>
+              <strong>Cost:</strong> ${costInfo}<br/>
+               ${thumbnailUrl ? `<img src="${thumbnailUrl}" alt="${Title}" style="width: 100px; height: auto; margin-top: 5px;" />` : ''}
           `);
         }
       }
@@ -276,10 +289,11 @@ const MapComponent = forwardRef((props, ref) => {
   }));
 
   return (
-    <div
-      ref={mapRef}
-      className="map-container" // Use the className defined in styles.css
-    ></div>
+    <>
+      <div ref={mapRef} className="map-container"></div>
+      {showAlert && <UserAlert message={alertMessage} onClose={() => setShowAlert(false)} />}
+    </>
+    
   );
 });
 
