@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gas Stations Along Route</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        const map = L.map("map").setView([48.8566, 2.3522], 10); // Paris as default center
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(map);
+
+        // Function to fetch and display gas stations along the polyline
+        async function displayStations() {
+            // Example polyline
+            const polyline = "u{~vFvyys@dBzA"; // Replace with actual polyline
+
+            try {
+                // Fetch data from the backend
+                const response = await fetch("http://localhost:5000/api/gas-stations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ polyline }),
+                });
+
+                const data = await response.json();
+
+                // Decode and plot polyline
+                const decodedPolyline = decodePolyline(polyline);
+                const polylineLayer = L.polyline(decodedPolyline, { color: "blue" }).addTo(map);
+                map.fitBounds(polylineLayer.getBounds());
+
+                // Plot gas stations
+                data.gasStations.forEach((station) => {
+                    const { Latitude, Longitude, Title } = station.AddressInfo;
+
+                    // Add marker for each station
+                    L.marker([Latitude, Longitude])
+                        .addTo(map)
+                        .bindPopup(`<b>${Title}</b><br>Latitude: ${Latitude}<br>Longitude: ${Longitude}`);
+                });
+            } catch (err) {
+                console.error("Error fetching gas stations:", err);
+            }
+        }
+
+        // Decode polyline to Leaflet-compatible format
+        function decodePolyline(encoded) {
+            let points = [];
+            let index = 0, lat = 0, lng = 0;
+
+            while (index < encoded.length) {
+                let b, shift = 0, result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                const deltaLat = (result & 1) ? ~(result >> 1) : (result >> 1);
+                lat += deltaLat;
+
+                shift = 0;
+                result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                const deltaLng = (result & 1) ? ~(result >> 1) : (result >> 1);
+                lng += deltaLng;
+
+                points.push([lat / 1e5, lng / 1e5]);
+            }
+            return points;
+        }
+
+        // Display stations and polyline
+        displayStations();
+    </script>
+</body>
+</html>
