@@ -34,7 +34,7 @@ app.get('/query', async (req, res) => {
     try {
         // Fetch data from Open Charge Map API
         const response = await axios.get(apiUrl);
-        console.log("Response from Open Charge Map API:", response.data); // Log full response
+        console.log("Response from Open Charge Map API:", response.data); 
         
         // Extract relevant information about each charging point based on your requirements.
         const chargingPoints = response.data.map(station => ({
@@ -68,13 +68,13 @@ app.get('/query', async (req, res) => {
                     IsUserSelectable: connection.StatusType?.IsUserSelectable || false,
                     Title: connection.StatusType?.Title || "Not specified",
                 },
-                LevelID: connection.LevelID || 0, // Keep LevelID for reference
+                LevelID: connection.LevelID || 0, 
                 Level: {
                     Title: connection.Level?.Title || "Not specified",
                     IsFastChargeCapable: connection.Level?.IsFastChargeCapable || false,
                     Comments: connection.Level?.Comments || "",
                 },
-                PowerKW: connection.PowerKW !== null ? connection.PowerKW : "Data not available", // Extract directly
+                PowerKW: connection.PowerKW !== null ? connection.PowerKW : "Data not available", 
                 CurrentType: {
                     Title: connection.CurrentType?.Title || "Not specified",
                     Description: connection.CurrentType?.Description || "",
