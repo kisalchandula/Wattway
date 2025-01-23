@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Routing with OSRM</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <style>
+
+:root {
+  --glitched-duration: 0.9s;
+  --glitched-long-duration: 3s;
+  --blue-color: #0c5f74;
+  --blue-color-opacity: #113a6c;
+  --orange-color: #ff9800;
+  --border-color: #0c5f74; 
+  --neon-color: #39ff14;
+  --black-color: #000;
+}
+#route-info {
+    background-color: #f9f9f9; 
+    padding: 10px;
+    margin-bottom: 10px; 
+    border: 1px solid #ddd; 
+    border-radius: 5px; 
+}
+
+
+
+body {
+  background-color: var(--blue-color); 
+  padding: 0px;
+  margin: 0px;
+  font-size: 20px;
+}
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+
+        #header {
+            width: 100%;
+            height: 60px;
+            background: url("https://interpol.recruitmentplatform.com/Q22FK026203F3VBQBV7V4V4EW/EN/images/bg-title.png") ;
+            background-size: 100% 100%; 
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            color: #fff;
+            font-size: 41px;
+            font-weight: bold;
+        }
+
+        #header img {
+            height: 40px;
+        }
+        
+        #main-container {
+            display: flex;
+            height: calc(100% - 60px); 
+        }
+
+        #user-inputs {
+            width: 18%;
+            background-color: #f9f9f9;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        #user-inputs form input, #user-inputs form select, #user-inputs form button {
+            width: 100%;
+            margin: 10px 0;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+
+        #map {
+  width: 60%; 
+  height: 98%; 
+  border: 5px solid var(--border-color); 
+  clip-path: polygon(0px 25px, 26px 0px, calc(60% - 25px) 0px, 60% 25px, 100% 25px, 100% calc(100% - 10px), calc(100% - 15px) calc(100% - 10px), calc(80% - 10px) calc(100% - 10px), calc(80% - 15px) calc(100% - 0px), 10px calc(100% - 0px), 0% calc(100% - 10px));
+  background-color: var(--black-color);
+  position: relative;
+}
+
+        #directions-container {
+            width: 25%;
+            background-color: #fff;
+            overflow-y: auto;
+            padding: 10px;
+            box-sizing: border-box;
+            border-left: 1px solid #ddd;
+        }
+
+        #directionsList {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #directionsList li {
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+            margin: 10px 0;
+            border-bottom: 1px dashed #ddd;
+        }
+
+        .lane-container {
+            margin-top: 5px;
+            display: flex;
+            gap: 5px;
+            align-self: center;
+        }
+
+        .lane {
+            padding: 5px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            font-size: 12px;
+            border-radius: 3px;
+            text-align: center;
+        }
+
+        .lane.active {
+            background-color: #4caf50; 
+            color: #fff; 
+            border-color: #4caf50; 
+        }
+    </style>
+        <link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+    <div id="header">
+        <div>
+            <img src="https://raw.githubusercontent.com/HKA-OSGIS/Wattway/refs/heads/devb/Untitled_design-removebg-preview%20(2).png" alt="WattWay Logo">
+            WattWay
+        </div>
+    </div>
+    <div id="main-container">
+        <div id="user-inputs">
+            <form id="routeForm">
+                
+                <input type="text" id="start" class="cyberpunk" placeholder="Start location" required>
+<input type="text" id="end" class="cyberpunk" placeholder="End location" required>
+<input type="text" id="waypoints" class="cyberpunk" placeholder="Waypoints (comma-separated)">
+<input type="number" id="battery" class="cyberpunk" placeholder="Current battery (%)" min="0" required>
+<input type="number" id="mileage" class="cyberpunk" placeholder="Mileage (km/per %)" min="0" step="0.1" required>
+<input type="number" id="battery-capacity" class="cyberpunk" placeholder="Battery Capacity (kWh)" min="0" required>
+
+                <button type="submit">Get Route</button>
+                <label for="connection-type">Select Connection Type:</label>
+                <select id="connection-type">
+                    <option value="all">All</option>
+                    <option value="1">Type 1 (J1772)</option>
+                    <option value="2">CHAdeMO</option>
+                    <option value="3">BS1363 3 Pin 13 Amp</option>
+    <option value="4">Blue Commando (2P+E)</option>
+    <option value="5">LP Inductive</option>
+    <option value="6">SP Inductive</option>
+    <option value="7">Avcon Connector</option>
+    <option value="8">Tesla (Roadster)</option>
+    <option value="9">NEMA 5-20R</option>
+    <option value="10">NEMA 14-30</option>
+    <option value="11">NEMA 14-50</option>
+    <option value="13">Europlug 2-Pin (CEE 7/16)</option>
+    <option value="14">NEMA 6-20</option>
+    <option value="15">NEMA 6-15</option>
+    <option value="16">CEE 3 Pin</option>
+    <option value="17">CEE 5 Pin</option>
+    <option value="18">CEE+ 7 Pin</option>
+    <option value="21">XLR Plug (4 pin)</option>
+    <option value="22">NEMA 5-15R</option>
+    <option value="23">CEE 7/5</option>
+    <option value="24">Wireless Charging</option>
+    <option value="25">Type 2 (Socket Only)</option>
+    <option value="26">SCAME Type 3C (Schneider-Legrand)</option>
+    <option value="27">NACS / Tesla Supercharger</option>
+    <option value="28">CEE 7/4 - Schuko - Type F</option>
+    <option value="29">Type I (AS 3112)</option>
+    <option value="30">Tesla (Model S/X)</option>
+    <option value="31">Tesla Battery Swap</option>
+    <option value="32">CCS (Type 1)</option>
+    <option value="33">CCS (Type 2)</option>
+    <option value="34">IEC 60309 3-pin</option>
+    <option value="35">IEC 60309 5-pin</option>
+    <option value="36">SCAME Type 3A (Low Power)</option>
+    <option value="1037">T13 - SEC1011 (Swiss domestic 3-pin) - Type J</option>
+    <option value="1038">GB-T AC - GB/T 20234.2 (Socket)</option>
+    <option value="1039">GB-T AC - GB/T 20234.2 (Tethered Cable)</option>
+    <option value="1040">GB-T DC - GB/T 20234.3</option>
+    <option value="1041">Three Phase 5-Pin (AS/NZ 3123)</option>
+    <option value="1042">NEMA TT-30R</option>
+    <option value="1043">Type M</option>
+                </select>
+            </form>
+        </div>
+        <div id="map"></div> 
+        <div id="directions-container">
+            <div id="route-info">
+                <p id="totalDistance"></p>
+                <p id="estimatedTime"></p>
+            </div>
+            <ul id="directionsList"></ul>
+        </div>
+    </div>
+
+
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([51.505, -0.09], 13);
+
+        L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', {
+            maxZoom: 19
+        }).addTo(map);
+
+        
+        let routeLayer = null;
+        let markerGroup = L.layerGroup().addTo(map);
+        let markers = [];
+
+        document.getElementById('routeForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const start = document.getElementById('start').value.trim();
+            const end = document.getElementById('end').value.trim();
+            const waypoints = document.getElementById('waypoints').value.trim();
+
+            if (!start || !end) {
+                alert('Please provide valid place names for both start and end.');
+                return;
+            }
+
+            try {
+                const geocode = async (place) => {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}&limit=1`);
+                    const data = await response.json();
+                    return data[0] ? { lat: data[0].lat, lon: data[0].lon } : null;
+                };
+
+                const startCoords = await geocode(start);
+                const endCoords = await geocode(end);
+
+                const waypointsCoords = waypoints ? await Promise.all(waypoints.split(',').map(waypoint => geocode(waypoint.trim()))) : [];
+
+                if (!startCoords || !endCoords || waypointsCoords.includes(null)) {
+                    alert('Could not find coordinates for the provided place names.');
+                    return;
+                }
+
+                const coords = [startCoords, ...waypointsCoords, endCoords];
+
+                clearPreviousMarkers();
+
+                coords.forEach((coord, index) => {
+                    const marker = L.marker([coord.lat, coord.lon], {
+                        draggable: true,
+                        color: index === 0 ? 'red' : (index === coords.length - 1 ? 'blue' : 'green')
+                    }).addTo(markerGroup);
+
+                    marker.on('dragend', updateRoute);
+
+                    marker.on('contextmenu', function (e) {
+                        const popup = L.popup()
+                            .setLatLng(e.latlng)
+                            .setContent(
+                                `<div class="context-menu">
+                                    <button id="removeMarker">Remove Point</button>
+                                </div>`
+                            )
+                            .openOn(map);
+
+                        document.getElementById('removeMarker').addEventListener('click', function () {
+                            markerGroup.removeLayer(marker);
+                            markers = markers.filter(m => m !== marker);
+                            updateRoute();
+                            map.closePopup();
+                        });
+                    });
+
+                    markers.push(marker);
+                });
+
+                updateRoute();
+            } catch (error) {
+                console.error('Error fetching route data:', error);
+                alert('An error occurred while fetching the route.');
+            }
+        });
+
+        map.on('contextmenu', function (e) {
+            const contextMenu = L.popup()
+                .setLatLng(e.latlng)
+                .setContent('<button id="addWaypoint">Add Midpoint</button>')
+                .openOn(map);
+
+            document.getElementById('addWaypoint').addEventListener('click', function () {
+                const newMarker = L.marker(e.latlng, { draggable: true, color: 'green' }).addTo(markerGroup);
+                newMarker.on('dragend', updateRoute);
+
+                newMarker.on('contextmenu', function (event) {
+                    const popup = L.popup()
+                        .setLatLng(event.latlng)
+                        .setContent(
+                            `<div class="context-menu">
+                                <button id="removeNewMarker">Remove Point</button>
+                            </div>`
+                        )
+                        .openOn(map);
+
+                    document.getElementById('removeNewMarker').addEventListener('click', function () {
+                        markerGroup.removeLayer(newMarker);
+                        markers = markers.filter(m => m !== newMarker);
+                        updateRoute();
+                        map.closePopup();
+                    });
+                });
+
+                markers.splice(markers.length - 1, 0, newMarker);
+                updateRoute();
+                map.closePopup();
+            });
+        });
+
+        function clearPreviousMarkers() {
+            markerGroup.clearLayers();
+            markers = [];
+        }
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    const unwantedDiv = document.querySelector('#directions-container[bis_skin_checked="1"]');
+    if (unwantedDiv) {
+        unwantedDiv.remove();
+    }
+});
+        
+let totalChargingTime = 0; 
+
+async function updateRoute() {
+    if (markers.length < 2) {
+        alert("Please add at least two points to calculate a route.");
+        return;
+    }
+
+    // Prepare coordinates for the route request
+    const coords = markers.map(marker => `${marker.getLatLng().lng},${marker.getLatLng().lat}`).join(';');
+    const routeUrl = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&steps=true&geometries=geojson`;
+    
+    console.log('Route request URL:', routeUrl);
+    
+    const battery = parseFloat(document.getElementById('battery').value);
+    const mileage = parseFloat(document.getElementById('mileage').value);
+    
+    const lowBatteryThreshold = 10;
+    const distanceToLowBattery = (battery - lowBatteryThreshold) * mileage;
+
+    try {
+        const routeResponse = await fetch(routeUrl);
+        const routeData = await routeResponse.json();
+
+        if (routeData.routes && routeData.routes.length > 0) {
+            if (routeLayer) {
+                map.removeLayer(routeLayer);
+            }
+            
+            routeLayer = L.layerGroup().addTo(map);
+            const route = routeData.routes[0];
+            const routeCoords = route.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+
+            console.log('Route Coordinates:', routeCoords);
+
+            // Draw the route on the map
+            const polyline = L.polyline(routeCoords, { color: 'blue', weight: 5 }).addTo(routeLayer);
+
+            // Calculate total distance and estimated time
+            const totalDistance = (route.distance / 1000).toFixed(2); 
+            const totalDuration = Math.floor(route.duration / 60); 
+
+            // Update distance and time display
+            document.getElementById('totalDistance').innerText = `Total Distance: ${totalDistance} km`;
+            document.getElementById('estimatedTime').innerText = `Estimated Time: ${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`;
+
+            // Clear previous directions
+            document.getElementById('directionsList').innerHTML = '';
+
+            // Display directions
+            displayDirections(route.legs);
+
+            // Create bounding box around low battery point
+            const lowBatteryPoint = findLowBatteryPoint(routeCoords, distanceToLowBattery);
+            
+            if (lowBatteryPoint) {
+                // Highlighting bounding box around low battery point
+                const remainingRange = lowBatteryThreshold * mileage; 
+                const boundingBox = createBoundingBox(lowBatteryPoint, remainingRange);
+                
+                const boundingBoxLayer = L.rectangle(boundingBox, { color: 'orange', weight: 2 }).addTo(routeLayer);
+
+                // Find entry point where route intersects with bounding box
+                const entryPoint = findBoundingBoxEntryPoint(routeCoords, boundingBox);
+                if (entryPoint) {
+                    L.marker(entryPoint).addTo(routeLayer).bindPopup('Bounding Box Entry Point');
+                }
+
+                L.marker(lowBatteryPoint).addTo(routeLayer).bindPopup('Low Battery Point');
+
+                // Fetch and display charging points within the new bounding box
+                const chargingPoints = await fetchChargingPoints(boundingBox.toBBoxString().split(','));
+                
+                const selectedType = document.getElementById('connection-type').value;
+                const filteredChargingPoints = filterChargingPoints(chargingPoints, selectedType);
+
+                displayChargingPoints(filteredChargingPoints, boundingBoxLayer);
+            }
+
+            const routeBounds = L.latLngBounds(routeCoords);
+            map.fitBounds(routeBounds);
+        } else {
+            alert('No route found between the specified locations.');
+        }
+        
+    } catch (error) {
+        console.error('Error fetching route data:', error);
+        alert('An error occurred while updating the route.');
+    }
+}
+
+
+
+
+
+
+
+function updateBatteryAfterReachingChargingPoint(distanceToChargingPoint) {
+    const mileage = parseFloat(document.getElementById('mileage').value);
+    const batteryUsed = distanceToChargingPoint / mileage;
+    const currentBattery = parseFloat(document.getElementById('battery').value);
+    const remainingBattery = Math.max(currentBattery - batteryUsed, 0);
+
+    console.log('Battery Used:', batteryUsed);
+    console.log('Remaining Battery:', remainingBattery);
+
+    document.getElementById('battery').value = remainingBattery; 
+}
+
+
+
+
+
+
+
+
+function getDistanceTraveled(routeCoords, point) {
+    let distance = 0;
+    for (let i = 0; i < routeCoords.length - 1; i++) {
+        const segmentDistance = L.latLng(routeCoords[i]).distanceTo(L.latLng(routeCoords[i + 1])) / 1000; // in km
+        distance += segmentDistance;
+        if (L.latLng(routeCoords[i + 1]).equals(point)) {
+            break;
+        }
+    }
+    return distance;
+}
+function checkArrival(lat, lon) {
+    const currentBattery = parseFloat(document.getElementById('battery').value);
+    const mileage = parseFloat(document.getElementById('mileage').value);
+    const chargingTime = parseFloat(document.getElementById('chargingTime').value);
+
+    const distanceToChargingPoint = getDistanceTraveled(markers.map(marker => marker.getLatLng()), L.latLng(lat, lon));
+    const batteryUsed = distanceToChargingPoint / mileage;
+    const remainingBattery = Math.max(currentBattery - batteryUsed, 0);
+    const chargedBattery = Math.min(remainingBattery + chargingTime * 10);//, 100
+
+    document.getElementById('battery').value = chargedBattery;
+    updateRoute();
+    map.closePopup();
+}
+
+
+
+
+
+
+
+
+
+
+
+function filterChargingPoints(chargingPoints, selectedType) {
+  const selectedTypeID = selectedType === 'all' ? null : parseInt(selectedType, 10);
+  
+  return chargingPoints.filter(point => 
+    selectedTypeID === null || point.connections.some(connection => 
+      connection.ConnectionType.ConnectionTypeID === selectedTypeID
+    )
+  );
+}
+
+
+
+
+async function fetchChargingPoints(boundingBox) {
+  const [swLat, swLon, neLat, neLon] = boundingBox;
+  const url = `http://localhost:3000/query?swLat=${swLon}&swLon=${swLat}&neLat=${neLon}&neLon=${neLat}`;
+  console.log('Fetching charging points from:', url);
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    console.log('Received charging points data:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching charging points:', error);
+    return [];
+  }
+}
+
+
+function displayChargingPoints(chargingPoints, boundingBoxLayer) {
+  chargingPoints.forEach(point => {
+    const marker = L.marker([point.addressInfo.Latitude, point.addressInfo.Longitude]).addTo(routeLayer);
+    const connectionOptions = point.connections.map(conn => 
+      `<option value="${conn.PowerKW}">${conn.ConnectionType.Title} (${conn.PowerKW} kW)</option>`
+    ).join('');
+
+    // Sanitize latitude and longitude for use in ID
+    const lat = point.addressInfo.Latitude.toString().replace('.', '_');
+    const lon = point.addressInfo.Longitude.toString().replace('.', '_');
+
+    const popupContent = `
+      <b>${point.addressInfo.Title}</b><br>
+      ${point.addressInfo.AddressLine1}<br>
+      ${point.addressInfo.Town}, ${point.addressInfo.Country}<br>
+      <hr>
+      <strong>Connections:</strong><br>
+      <select id="connectionSelect-${lat}-${lon}">
+        ${connectionOptions}
+      </select>
+      <hr>
+      <label for="chargingTime">Charging time (hours):</label>
+      <input type="number" id="chargingTime" min="0" step="0.5" value="1">
+      <button onclick="addChargingPointAsWaypoint('${lat}', '${lon}')">Add as Waypoint</button>
+    `;
+    marker.bindPopup(popupContent);
+  });
+
+  // Highlight the bounding box
+  boundingBoxLayer.on('click', () => map.fitBounds(boundingBoxLayer.getBounds()));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+function addChargingPointAsWaypoint(lat, lon) {
+    // Log raw latitude and longitude values for debugging
+    console.log(`Raw Values - Latitude: ${lat}, Longitude: ${lon}`);
+
+    // Sanitize input by replacing underscores with periods
+    let sanitizedLat = lat.replace(/_/g, '.').trim();
+    let sanitizedLon = lon.replace(/_/g, '.').trim();
+
+    // Now parse as floats
+    const latNum = parseFloat(sanitizedLat);
+    const lonNum = parseFloat(sanitizedLon);
+
+    // Log sanitized values for debugging
+    console.log(`Sanitized Values - Latitude: ${latNum}, Longitude: ${lonNum}`);
+
+    // Validate lat and lon ranges
+    if (isNaN(latNum) || isNaN(lonNum) || latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180) {
+        alert('Invalid latitude or longitude values.');
+        return;
+    }
+
+    const chargingTime = parseFloat(document.getElementById('chargingTime').value);
+    const currentBattery = parseFloat(document.getElementById('battery').value);
+
+    // Assuming a charging rate of 40% per hour (adjust as needed)
+    const chargedBattery = Math.min(currentBattery + chargingTime * 40);//, 100
+
+    // Create marker
+    const newMarker = L.marker([latNum, lonNum], { draggable: true, color: 'green' }).addTo(markerGroup);
+    
+    newMarker.on('dragend', updateRoute);
+
+    newMarker.on('contextmenu', function (event) {
+        const popup = L.popup()
+            .setLatLng(event.latlng)
+            .setContent(`<div class="context-menu">
+                            <button id="confirmArrival">Confirm Arrival</button>
+                            <button id="removeNewMarker">Remove Point</button>
+                         </div>`)
+            .openOn(map);
+
+        document.getElementById('confirmArrival').addEventListener('click', function () {
+            const distanceToChargingPoint = getDistanceTraveled(markers.map(marker => marker.getLatLng()), newMarker.getLatLng());
+            updateBatteryAfterReachingChargingPoint(distanceToChargingPoint);
+            map.closePopup();
+        });
+
+        document.getElementById('removeNewMarker').addEventListener('click', function () {
+            markerGroup.removeLayer(newMarker);
+            markers = markers.filter(m => m !== newMarker);
+            updateRoute();
+            map.closePopup();
+        });
+    });
+
+    // Insert the new marker before the last marker (destination)
+    markers.splice(markers.length - 1, 0, newMarker);
+
+    // Update the battery value
+    document.getElementById('battery').value = chargedBattery;
+
+    updateRoute(); 
+}
+
+
+
+
+
+
+
+
+
+
+
+
+function updateBatteryAfterReachingChargingPoint(distanceToChargingPoint) {
+    const mileage = parseFloat(document.getElementById('mileage').value);
+    const batteryUsed = distanceToChargingPoint / mileage;
+    const currentBattery = parseFloat(document.getElementById('battery').value);
+    const remainingBattery = Math.max(currentBattery - batteryUsed, 0);
+
+    console.log('Battery Used:', batteryUsed);
+    console.log('Remaining Battery:', remainingBattery);
+
+    document.getElementById('battery').value = remainingBattery; 
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+function calculateNextBoundingBox(pointID, lat, lon) {
+  const chargingTime = parseFloat(document.getElementById('chargingTime').value);
+  const battery = parseFloat(document.getElementById('battery').value);
+  
+  const latNum = parseFloat(lat);
+  const lonNum = parseFloat(lon);
+
+  const mileage = parseFloat(document.getElementById('mileage').value);
+  
+  const chargedBattery = Math.min(battery + chargingTime * 10);//, 100
+  const newRange = chargedBattery * mileage;
+  
+  const newBoundingBox = createBoundingBox(L.latLng(latNum, lonNum), newRange);
+
+  map.eachLayer(layer => {
+    if (layer instanceof L.Rectangle) {
+      map.removeLayer(layer);
+    }
+  });
+  
+  L.rectangle(newBoundingBox).addTo(map);
+
+  document.getElementById('battery').value = chargedBattery;
+
+  fetchChargingPoints(newBoundingBox.toBBoxString().split(','))
+    .then(chargingPoints => {
+      const selectedType = document.getElementById('connection-type').value;
+      const filteredChargingPoints = filterChargingPoints(chargingPoints, selectedType);
+      displayChargingPoints(filteredChargingPoints, L.rectangle(newBoundingBox));
+    });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function findLowBatteryPoint(routeCoords, distanceToLowBattery) {
+  let accumulatedDistance = 0;
+  for (let i = 0; i < routeCoords.length - 1; i++) {
+    const segmentDistance = L.latLng(routeCoords[i]).distanceTo(L.latLng(routeCoords[i + 1])) / 1000; // in km
+    accumulatedDistance += segmentDistance;
+    if (accumulatedDistance >= distanceToLowBattery) {
+      const ratio = (distanceToLowBattery - (accumulatedDistance - segmentDistance)) / segmentDistance;
+      return L.latLng(
+        routeCoords[i][0] + (routeCoords[i + 1][0] - routeCoords[i][0]) * ratio,
+        routeCoords[i][1] + (routeCoords[i + 1][1] - routeCoords[i][1]) * ratio
+      );
+    }
+  }
+  return null;
+}
+
+function createBoundingBox(lowBatteryPoint, remainingRange) {
+  const earthRadius = 6371; // km
+  const latDelta = (remainingRange / earthRadius) * (180 / Math.PI);
+  const lonDelta = (remainingRange / earthRadius) * (180 / Math.PI) / Math.cos(lowBatteryPoint.lat * Math.PI / 180);
+
+  return L.latLngBounds(
+    [lowBatteryPoint.lat - latDelta, lowBatteryPoint.lng - lonDelta],
+    [lowBatteryPoint.lat + latDelta, lowBatteryPoint.lng + lonDelta]
+  );
+}
+
+function findBoundingBoxEntryPoint(routeCoords, boundingBox) {
+  // Extract bounds
+  const swLat = boundingBox.getSouthWest().lat;
+  const swLon = boundingBox.getSouthWest().lng;
+  const neLat = boundingBox.getNorthEast().lat;
+  const neLon = boundingBox.getNorthEast().lng;
+
+  for (let i = 0; i < routeCoords.length - 1; i++) {
+    const segmentStart = L.latLng(routeCoords[i]);
+    const segmentEnd = L.latLng(routeCoords[i + 1]);
+    
+    if (segmentIntersectsBoundingBox(segmentStart, segmentEnd, swLat, swLon, neLat, neLon)) {
+      return segmentStart; 
+    }
+  }
+  
+  return null; // No intersection found
+}
+
+function segmentIntersectsBoundingBox(start, end, swLat, swLon, neLat, neLon) {
+  return (
+    Math.min(start.lat, end.lat) <= neLat &&
+    Math.max(start.lat, end.lat) >= swLat &&
+    Math.min(start.lng, end.lng) <= neLon &&
+    Math.max(start.lng, end.lng) >= swLon
+  );
+}
+
+
+
+
+
+
+
+
+
+
+function displayDirections(legs) {
+    const directionsList = document.getElementById('directionsList');
+    directionsList.innerHTML = '';
+    let stepCounter = 1;
+
+    legs.forEach((leg, legIndex) => {
+        leg.steps.forEach((step, stepIndex) => {
+            const distance = (step.distance / 1000).toFixed(2);
+            const type = step.maneuver.type || 'proceed';
+            const modifier = step.maneuver.modifier || '';
+            const placeName = step.destinations || step.name || step.ref || '';
+
+            let instruction = constructInstruction(type, modifier, placeName, stepIndex, leg.steps.length);
+
+            if (type !== 'arrive') {
+                instruction = `${instruction}, ${distance} km`;
+            }
+
+            const direction = document.createElement('li');
+
+            // Create a wrapper for the image and instruction
+            const directionWrapper = document.createElement('div');
+            directionWrapper.style.display = 'flex';
+            directionWrapper.style.alignItems = 'center';
+            directionWrapper.style.gap = '10px';
+
+            // Create an image element for directional arrows
+            const arrowImage = document.createElement('img');
+            arrowImage.style.width = '20px'; 
+            arrowImage.style.height = '20px'; 
+
+            // Set the source of the image based on the maneuver type
+            if (modifier === 'left') {
+                arrowImage.src = 'https://uxwing.com/wp-content/themes/uxwing/download/arrow-direction/turn-left-arrow-icon.svg';
+            } else if (modifier === 'right') {
+                arrowImage.src = 'https://uxwing.com/wp-content/themes/uxwing/download/arrow-direction/turn-right-arrow-icon.svg';
+            } else if (type === 'continue' || type === 'new name') {
+                arrowImage.src = 'https://uxwing.com/wp-content/themes/uxwing/download/arrow-direction/bold-arrow-top-icon.svg';
+            } else if (type === 'merge') {
+                arrowImage.src = 'https://uxwing.com/wp-content/themes/uxwing/download/arrow-direction/two-arrow-combine-into-one-top-icon.svg';
+            }
+
+            // Add the image and instruction text to the wrapper
+            directionWrapper.appendChild(arrowImage);
+            const instructionText = document.createElement('span');
+            instructionText.textContent = `${stepCounter}. ${instruction}`;
+            directionWrapper.appendChild(instructionText);
+
+            direction.appendChild(directionWrapper);
+
+            // Add lane guidance
+            addLaneGuidance(direction, step.intersections);
+
+            directionsList.appendChild(direction);
+
+            stepCounter++;
+
+            if (type === 'arrive' && legIndex < legs.length - 1) {
+                const waypoint = document.createElement('li');
+                waypoint.innerText = `Arrived at waypoint ${legIndex + 1}`;
+                directionsList.appendChild(waypoint);
+            }
+        });
+    });
+}
+
+function addLaneGuidance(directionElement, intersections) {
+    const relevantIntersection = intersections.find(intersection => intersection.lanes);
+    if (relevantIntersection && relevantIntersection.lanes) {
+        const laneContainer = document.createElement('div');
+        laneContainer.className = 'lane-container';
+        
+        relevantIntersection.lanes.forEach(lane => {
+            const laneElement = document.createElement('span');
+            laneElement.className = 'lane';
+            if (lane.valid) {
+                laneElement.classList.add('active');
+            }
+            laneElement.innerText = '|'; // Represents a lane
+            laneContainer.appendChild(laneElement);
+        });
+
+        directionElement.appendChild(laneContainer);
+    }
+}
+
+
+
+
+
+
+
+
+function selectRoute(index, routes) {
+    routeLayer.eachLayer(function(layer) {
+        if (layer instanceof L.Polyline) {
+            layer.setStyle({ color: 'gray' });
+        }
+    });
+
+    routeLayer.getLayers()[index].setStyle({ color: 'blue' });
+    displayDirections(routes[index].legs);
+}
+
+
+
+
+
+
+function constructInstruction(type, modifier, placeName, index, totalSteps) {
+    switch (type) {
+        case 'depart':
+            return `Depart ${placeName ? `from ${placeName}` : ''}, heading ${modifier || 'straight'}`;
+        case 'arrive':
+            return index === totalSteps - 1 
+                ? `You have arrived at your destination${placeName ? `, ${placeName}` : ''}.`
+                : `You have arrived at a waypoint${placeName ? `, ${placeName}` : ''}.`;
+        case 'end of road':
+            return `Turn ${modifier || 'left'} onto ${placeName}`;
+        case 'turn':
+            return `Turn ${modifier} onto ${placeName}`;
+        case 'off ramp':
+            return `Take the ramp towards ${placeName}`;
+        case 'merge':
+            return `Merge onto ${placeName}`;
+        case 'new name':
+        case 'continue': 
+            return `Continue onto ${placeName}`;
+        default:
+            return `${capitalize(type)} ${modifier || ''} onto ${placeName}`;
+    }
+}
+
+
+
+
+
+function capitalize(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </script>
+</body>
+</html>
