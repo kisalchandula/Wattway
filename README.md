@@ -28,7 +28,7 @@ node -v
 2. **Clone the Repository**:  
    Run the following commands:
    ```bash
-   git clone https://github.com/yourusername/wattway.git
+   git clone https://github.com/HKA-OSGIS/Wattway.git
    cd wattway
    ```
 
