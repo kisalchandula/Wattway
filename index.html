@@ -10,25 +10,25 @@
 :root {
   --glitched-duration: 0.9s;
   --glitched-long-duration: 3s;
-  --blue-color: #0c5f74; /* Updated to blue */
+  --blue-color: #0c5f74;
   --blue-color-opacity: #113a6c;
   --orange-color: #ff9800;
-  --border-color: #0c5f74; /* Updated border color to blue */
+  --border-color: #0c5f74; 
   --neon-color: #39ff14;
   --black-color: #000;
 }
 #route-info {
-    background-color: #f9f9f9; /* Light background for contrast */
+    background-color: #f9f9f9; 
     padding: 10px;
-    margin-bottom: 10px; /* Space between route info and directions */
-    border: 1px solid #ddd; /* Border for distinction */
-    border-radius: 5px; /* Rounded corners */
+    margin-bottom: 10px; 
+    border: 1px solid #ddd; 
+    border-radius: 5px; 
 }
 
 
 
 body {
-  background-color: var(--blue-color); /* Background color updated to blue */
+  background-color: var(--blue-color); 
   padding: 0px;
   margin: 0px;
   font-size: 20px;
@@ -44,7 +44,7 @@ body {
             width: 100%;
             height: 60px;
             background: url("https://interpol.recruitmentplatform.com/Q22FK026203F3VBQBV7V4V4EW/EN/images/bg-title.png") ;
-            background-size: 100% 100%; /* Ensures the background image covers the entire header */
+            background-size: 100% 100%; 
 
             display: flex;
             align-items: center;
@@ -62,7 +62,7 @@ body {
         
         #main-container {
             display: flex;
-            height: calc(100% - 60px); /* Full height minus the header */
+            height: calc(100% - 60px); 
         }
 
         #user-inputs {
@@ -81,9 +81,9 @@ body {
         }
 
         #map {
-  width: 60%; /* Adjust according to your layout */
-  height: 98%; /* Set your height as required */
-  border: 5px solid var(--border-color); /* Border color updated to blue */
+  width: 60%; 
+  height: 98%; 
+  border: 5px solid var(--border-color); 
   clip-path: polygon(0px 25px, 26px 0px, calc(60% - 25px) 0px, 60% 25px, 100% 25px, 100% calc(100% - 10px), calc(100% - 15px) calc(100% - 10px), calc(80% - 10px) calc(100% - 10px), calc(80% - 15px) calc(100% - 0px), 10px calc(100% - 0px), 0% calc(100% - 10px));
   background-color: var(--black-color);
   position: relative;
@@ -199,11 +199,10 @@ body {
     <option value="1041">Three Phase 5-Pin (AS/NZ 3123)</option>
     <option value="1042">NEMA TT-30R</option>
     <option value="1043">Type M</option>
-                    <!-- Add other options as needed -->
                 </select>
             </form>
         </div>
-        <div id="map"></div> <!-- Only one map div -->
+        <div id="map"></div> 
         <div id="directions-container">
             <div id="route-info">
                 <p id="totalDistance"></p>
@@ -343,7 +342,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
         
-let totalChargingTime = 0; // Variable to track total charging time
+let totalChargingTime = 0; 
 
 async function updateRoute() {
     if (markers.length < 2) {
@@ -382,8 +381,8 @@ async function updateRoute() {
             const polyline = L.polyline(routeCoords, { color: 'blue', weight: 5 }).addTo(routeLayer);
 
             // Calculate total distance and estimated time
-            const totalDistance = (route.distance / 1000).toFixed(2); // Convert meters to kilometers
-            const totalDuration = Math.floor(route.duration / 60); // Convert seconds to minutes
+            const totalDistance = (route.distance / 1000).toFixed(2); 
+            const totalDuration = Math.floor(route.duration / 60); 
 
             // Update distance and time display
             document.getElementById('totalDistance').innerText = `Total Distance: ${totalDistance} km`;
@@ -400,7 +399,7 @@ async function updateRoute() {
             
             if (lowBatteryPoint) {
                 // Highlighting bounding box around low battery point
-                const remainingRange = lowBatteryThreshold * mileage; // Adjust as needed
+                const remainingRange = lowBatteryThreshold * mileage; 
                 const boundingBox = createBoundingBox(lowBatteryPoint, remainingRange);
                 
                 const boundingBoxLayer = L.rectangle(boundingBox, { color: 'orange', weight: 2 }).addTo(routeLayer);
@@ -449,7 +448,7 @@ function updateBatteryAfterReachingChargingPoint(distanceToChargingPoint) {
     console.log('Battery Used:', batteryUsed);
     console.log('Remaining Battery:', remainingBattery);
 
-    document.getElementById('battery').value = remainingBattery; // Update battery here
+    document.getElementById('battery').value = remainingBattery; 
 }
 
 
@@ -633,7 +632,7 @@ function addChargingPointAsWaypoint(lat, lon) {
     // Update the battery value
     document.getElementById('battery').value = chargedBattery;
 
-    updateRoute(); // Call to update route after adding waypoint
+    updateRoute(); 
 }
 
 
@@ -656,7 +655,7 @@ function updateBatteryAfterReachingChargingPoint(distanceToChargingPoint) {
     console.log('Battery Used:', batteryUsed);
     console.log('Remaining Battery:', remainingBattery);
 
-    document.getElementById('battery').value = remainingBattery; // Update battery here
+    document.getElementById('battery').value = remainingBattery; 
 }
 
 
@@ -767,10 +766,8 @@ function findBoundingBoxEntryPoint(routeCoords, boundingBox) {
     const segmentStart = L.latLng(routeCoords[i]);
     const segmentEnd = L.latLng(routeCoords[i + 1]);
     
-    // Check if segment intersects with bounding box
     if (segmentIntersectsBoundingBox(segmentStart, segmentEnd, swLat, swLon, neLat, neLon)) {
-      // Calculate intersection point (simplified for demonstration)
-      return segmentStart; // Replace with actual intersection calculation logic
+      return segmentStart; 
     }
   }
   
@@ -778,7 +775,6 @@ function findBoundingBoxEntryPoint(routeCoords, boundingBox) {
 }
 
 function segmentIntersectsBoundingBox(start, end, swLat, swLon, neLat, neLon) {
-  // Simple AABB intersection check
   return (
     Math.min(start.lat, end.lat) <= neLat &&
     Math.max(start.lat, end.lat) >= swLat &&
@@ -824,8 +820,8 @@ function displayDirections(legs) {
 
             // Create an image element for directional arrows
             const arrowImage = document.createElement('img');
-            arrowImage.style.width = '20px'; // Set width for the image
-            arrowImage.style.height = '20px'; // Set height for the image
+            arrowImage.style.width = '20px'; 
+            arrowImage.style.height = '20px'; 
 
             // Set the source of the image based on the maneuver type
             if (modifier === 'left') {
@@ -878,7 +874,6 @@ function addLaneGuidance(directionElement, intersections) {
             laneContainer.appendChild(laneElement);
         });
 
-        // Append lane guidance below the direction instruction
         directionElement.appendChild(laneContainer);
     }
 }
@@ -923,7 +918,7 @@ function constructInstruction(type, modifier, placeName, index, totalSteps) {
         case 'merge':
             return `Merge onto ${placeName}`;
         case 'new name':
-        case 'continue': // Handle continue here as well
+        case 'continue': 
             return `Continue onto ${placeName}`;
         default:
             return `${capitalize(type)} ${modifier || ''} onto ${placeName}`;
