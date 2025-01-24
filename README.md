@@ -117,7 +117,7 @@ For any inquiries, please reach out to [bhikadiyabhavin258@gmail.com].
 ![BY License](https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1)
 ![NC License](https://mirrors.creativecommons.org/presskit/icons/nc.svg?ref=chooser-v1)
 
-##Snapshots
+## Snapshots
 ![image](https://github.com/user-attachments/assets/5935917d-50c6-4751-831c-c18770431e8c)
 ![image](https://github.com/user-attachments/assets/079f1437-a073-4481-8303-7f77b4cdb91c)
 
